@@ -1,0 +1,25 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 14
+    buildToolsVersion "22.0.1"
+
+    defaultConfig {
+        applicationId "com.wifirecorder"
+        minSdkVersion 8
+        targetSdkVersion 19
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+
+    android{compileOptions.encoding="GBK"}
+}
+
+dependencies {
+    compile 'com.android.support:support-v4:19.0.0'
+}
