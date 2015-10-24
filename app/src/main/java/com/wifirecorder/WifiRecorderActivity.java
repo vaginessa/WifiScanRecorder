@@ -40,8 +40,8 @@ public class WifiRecorderActivity extends Activity
 	private static final String WIFI_TIMER = "wifi_timer";
 	public static final long WIFI_SCAN_DELAY = 5000;
 	private static final String TAG = "WifiMapper";
-	private static final int SCANS_DEFAULT = 5;
-	private static final int DELAY_DEFAULT = 5;
+	private static final int SCANS_DEFAULT = 5;//默认扫描次数
+	private static final int DELAY_DEFAULT = 5;//默认扫描间隔时间
 
 	private Button btnStop;
 	private Button btnStart;//记录wifi资讯
@@ -60,6 +60,8 @@ public class WifiRecorderActivity extends Activity
 	private int scanCount=0;//扫描次数
 	private EditText edtFileName;//wifi保存文件名
 	private boolean isScan=false;//是否开始采集，record按下时变为true
+	private int APSum = 20;//预先计划记录的AP总数
+	private List<ScanResult> firstScan;//第一次扫描结果
 
 	private int scans = SCANS_DEFAULT;
 	private int delay = DELAY_DEFAULT;
@@ -135,25 +137,52 @@ public class WifiRecorderActivity extends Activity
 		String dateTime = android.text.format.DateFormat.format("yyyy_MM_dd_hhmm", new java.util.Date()).toString();
 		wifiRecFile = new File(getDirectory(),String.format("%s.txt",dateTime));
 		//String firstLine = String.format("#%d|%d|%s\n", scans, delay, dateTime);
-		//doWriteToFile(wifiRecFile, firstLine);
+		StringBuilder firstLine =  new StringBuilder();
+		firstLine.append("TimeStamp");
+		for(int i=1;i<=APSum;i++){
+			firstLine.append(" AP"+i);
+		}
+		firstLine.append("\n");
+		doWriteToFile(wifiRecFile, firstLine.toString());//写入第一行 TimeStamp AP1 AP2 AP3 ……
 	}
 
 	public void AddtoFile(List<ScanResult> scanResults) throws Exception {
 		Log.d(TAG, "Start addData");
 		StringBuilder stringBuilder = new StringBuilder();
 		long timestamp = System.currentTimeMillis() / 1000;
-		stringBuilder.append(String.format("$%s\n", timestamp));//记录扫描wifi序号，时间
-		for (ScanResult scanResult : scanResults) {
-			stringBuilder.append(String.format("%s %s %s %s\n", scanResult.SSID, scanResult.BSSID, scanResult.level,
-					scanResult.frequency));//记录wifi信息
+		stringBuilder.append(String.format("%s ", timestamp));//记录扫描wifi序号，时间
+		if (scanCount == 1){
+			firstScan = scanResults;
+			for (ScanResult firstscanResult : firstScan) {
+				stringBuilder.append(String.format("%s|%s ",firstscanResult.BSSID, firstscanResult.level));//记录wifi信息
+			}
+			stringBuilder.append("\n");
+			doWriteToFile(wifiRecFile, stringBuilder.toString());
+			wifiData.setText(String.format("%s", stringBuilder));
 		}
-		doWriteToFile(wifiRecFile, stringBuilder.toString());
-		wifiData.setText(String.format("%s", stringBuilder));
+		else {
+			//利用循环搜索与第一次搜索结果进行匹配。
+			for (ScanResult firstscanResult : firstScan){
+				boolean isCheck = false;//匹配是否存在，匹配到为true
+				for (ScanResult scanResult : scanResults) {
+					if (firstscanResult.BSSID.equals(scanResult.BSSID)){
+						stringBuilder.append(String.format("%s|%s ",scanResult.BSSID, scanResult.level));//记录wifi信息
+						isCheck = true;break;
+					}
+				}
+				if (!isCheck){
+					stringBuilder.append(" | ");
+				}
+			}
+			stringBuilder.append("\n");
+			doWriteToFile(wifiRecFile, stringBuilder.toString());
+			wifiData.setText(String.format("%s", stringBuilder));
+		}
 	}
 
 	public String getDirectory() {
 		return String.format("%s/%s", Environment.getExternalStorageDirectory().toString(), "wifiRec");
-	}//获取SD卡目录，在该目录下新建一个wifimapper的子目录
+	}//获取SD卡目录，在该目录下新建一个wifiRec的子目录
 
 	//写入文件//可以直接追加在文末
 	private void doWriteToFile(File file, String string) throws IOException {
