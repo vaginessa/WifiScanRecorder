@@ -13,10 +13,13 @@ import java.util.Vector;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
@@ -54,14 +57,14 @@ public class WifiRecorderActivity extends Activity
 	private EditText eidtDelayNum;
 	private WifiManager wifiManager;//管理并控制wifi
 	private File wifiRecFile;//存放wifi数据的文件名
-	private Timer wifiTimer;
+	//private Timer wifiTimer;
 	private WifiBroadcastReceiver wifiScanReciver;
 	private ConnectivityManager connectivityManager;
 	private int scanCount=0;//扫描次数
-	private EditText edtFileName;//wifi保存文件名
 	private boolean isScan=false;//是否开始采集，record按下时变为true
 	private int APSum = 20;//预先计划记录的AP总数
 	private List<ScanResult> firstScan;//第一次扫描结果
+    public Thread thScan;
 
 	private int scans = SCANS_DEFAULT;
 	private int delay = DELAY_DEFAULT;
@@ -83,7 +86,7 @@ public class WifiRecorderActivity extends Activity
 		eidtDelayNum = (EditText)findViewById(R.id.editDelayNum);
 		//设定wifi装置
 		wifiManager = (WifiManager)this.getSystemService(Context.WIFI_SERVICE);//取得WifiManager
-		wifiTimer = new Timer(WIFI_TIMER); //Timer
+		//wifiTimer = new Timer(WIFI_TIMER); //Timer
 		wifiScanReciver = new WifiBroadcastReceiver(); //
 		connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 		//启用wifi装置
@@ -97,7 +100,7 @@ public class WifiRecorderActivity extends Activity
 
 		btnStart.setEnabled(true);
 		btnStop.setEnabled(false);
-	}
+    }
 
 	private Button.OnClickListener btnListener = new Button.OnClickListener()
 	{
@@ -154,7 +157,7 @@ public class WifiRecorderActivity extends Activity
 		if (scanCount == 1){
 			firstScan = scanResults;
 			for (ScanResult firstscanResult : firstScan) {
-				stringBuilder.append(String.format("%s|%s ",firstscanResult.BSSID, firstscanResult.level));//记录wifi信息
+				stringBuilder.append(String.format("%s ",firstscanResult.level));//记录wifi信息
 			}
 			stringBuilder.append("\n");
 			doWriteToFile(wifiRecFile, stringBuilder.toString());
@@ -166,12 +169,12 @@ public class WifiRecorderActivity extends Activity
 				boolean isCheck = false;//匹配是否存在，匹配到为true
 				for (ScanResult scanResult : scanResults) {
 					if (firstscanResult.BSSID.equals(scanResult.BSSID)){
-						stringBuilder.append(String.format("%s|%s ",scanResult.BSSID, scanResult.level));//记录wifi信息
+						stringBuilder.append(String.format("%s ", scanResult.level));//记录wifi信息
 						isCheck = true;break;
 					}
 				}
 				if (!isCheck){
-					stringBuilder.append(" | ");
+					stringBuilder.append("-110 ");
 				}
 			}
 			stringBuilder.append("\n");
@@ -226,6 +229,7 @@ public class WifiRecorderActivity extends Activity
 		scans = Integer.parseInt(editScanNum.getText().toString());
         scanProgress.setText("ScanCount: " + scanCount + "/" + scans);
 		CreatFile();
+        //new Thread(new scanThread()).start();
 	}
 
 	private void doStopScan()//扫描停止
@@ -236,8 +240,30 @@ public class WifiRecorderActivity extends Activity
 			isScan=false;
 			btnStart.setEnabled(true);
 			btnStop.setEnabled(false);
+            Toast.makeText(getApplicationContext(),"scan finished",Toast.LENGTH_LONG).show();
 		}
 	}
+
+    //执行周期扫描进程
+    public class scanThread implements Runnable {
+
+    @Override
+        public void run() {
+            Log.d(TAG, "th run");
+        // TODO Auto-generated method stub
+            while (true) {
+                try {
+                    Thread.sleep(delay * 1000);
+                    wifiManager.startScan();
+                   // GetWifiList(wifiManager.getScanResults());
+                }
+                catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
 	public void doNotify(String message) {
 		doNotify(message, false);
@@ -274,22 +300,16 @@ public class WifiRecorderActivity extends Activity
 		NetworkInfo connectivityNetworkInfo = connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 		return connectivityNetworkInfo.isConnected();
 	}
+    class WifiBroadcastReceiver extends BroadcastReceiver {
 
-	class WifiBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            GetWifiList(wifiManager.getScanResults());
+            if (isWifiConnected()) {
+                new Thread(new scanThread()).start();
+            }
+        }
 
-		@Override
-		public void onReceive(Context context, Intent intent) {
-				GetWifiList(wifiManager.getScanResults());
-			if (isWifiConnected()) {
-				wifiTimer.schedule(new TimerTask() {
-					@Override
-					public void run() {
-						wifiManager.startScan();
-					}
-				}, delay * 1000);
-			}
-		}
-
-	}
+    }
 
 }
