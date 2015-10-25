@@ -82,13 +82,20 @@
 
 	</RelativeLayout>
 
+	<ProgressBar
+		android:id="@+id/scanPb"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:padding="5dp"
+		style="?android:attr/progressBarStyleHorizontal"/>
+
 	<TextView
 		android:id="@+id/ScanProgress"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
 		android:layout_marginTop="20sp"
 		android:textSize="16sp"
-		android:text="scanCount: 0/0"/>
+		android:text="扫描进度: 0/0"/>
 	<TextView
 		android:id="@+id/wifiData"
 		android:layout_width="fill_parent"
