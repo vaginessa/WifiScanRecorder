@@ -93,15 +93,42 @@
 		android:id="@+id/ScanProgress"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="20sp"
 		android:textSize="16sp"
 		android:text="扫描进度: 0/0"/>
 	<TextView
 		android:id="@+id/wifiData"
 		android:layout_width="fill_parent"
-		android:layout_height="wrap_content"
+		android:layout_height="200dp"
 		android:layout_marginTop="10sp"
 		android:textSize="16sp"
 		android:text="WifiData"/>
+	<LinearLayout
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content">
+		<Button
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:id="@+id/btnSaveDefault"
+			android:text="保存wifi分布"/>
+		<Button
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:id="@+id/btnReadDefault"
+			android:text="读取wifi分布"/>
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content">
+		<TextView
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="分布文件名"/>
+		<EditText
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:id="@+id/edtBase"
+			android:text="系馆"/>
+	</LinearLayout>
 
 </LinearLayout>
