@@ -52,8 +52,8 @@ public class WifiRecorderActivity extends Activity
 	private static final String WIFI_TIMER = "wifi_timer";
 	public static final long WIFI_SCAN_DELAY = 5000;
 	private static final String TAG = "WifiMapper";
-	private static final int SCANS_DEFAULT = 5;//默认扫描次数
-	private static final int DELAY_DEFAULT = 5;//默认扫描间隔时间
+	private static final int SCANS_DEFAULT = 10;//默认扫描次数
+	private static final int DELAY_DEFAULT = 4;//默认扫描间隔时间
 
 	private Button btnStop;
 	private Button btnStart;//记录wifi资讯
@@ -62,21 +62,23 @@ public class WifiRecorderActivity extends Activity
 	private Button btnReadDefault;
 	private TextView wifiData;//界面显示wifi数据
 	private TextView scanProgress;//界面显示wifi数据
-	private TextView viewScanNum;
-	private TextView viewDelayNum;
 	private EditText edtBase;
 	private EditText editScanNum;
 	private EditText eidtDelayNum;
+	private EditText edtLocId;
+	private EditText edtSaveFile;
     private ProgressBar scanPb;//扫描进度
+
 	private WifiManager wifiManager;//管理并控制wifi
 	private File wifiRecFile;//存放wifi数据的文件名
 	private String baseFile;//存放配置文件的名称
 	private ConnectivityManager connectivityManager;
 	private int scanCount=0;//扫描次数
 	private boolean isScan=false;//是否开始采集，record按下时变为true
-	private int APSum = 20;//预先计划记录的AP总数
+	private int APSum = 50;//预先计划记录的AP总数
 	private List<ScanResult> firstScan;//第一次扫描结果
 	private List<ScanResult> baseScan;//扫描结果汇总，作为存储的基准
+    private String LocId;//位置ID，记录在Wifi的txt中
 
 	private int scans = SCANS_DEFAULT;
 	private int delay = DELAY_DEFAULT;
@@ -94,11 +96,11 @@ public class WifiRecorderActivity extends Activity
 		btnReadDefault = (Button)findViewById(R.id.btnReadDefault);
 		wifiData = (TextView)findViewById(R.id.wifiData);
 		scanProgress = (TextView)findViewById(R.id.ScanProgress);
-		viewScanNum = (TextView)findViewById(R.id.viewScanNum);
-		viewDelayNum = (TextView)findViewById(R.id.viewDelayNum);
 		editScanNum = (EditText)findViewById(R.id.editScanNum);
 		eidtDelayNum = (EditText)findViewById(R.id.editDelayNum);
 		edtBase = (EditText)findViewById(R.id.edtBase);
+		edtLocId = (EditText)findViewById(R.id.edtLocId);
+		edtSaveFile = (EditText)findViewById(R.id.edtSaveFile);
         scanPb = (ProgressBar)findViewById(R.id.scanPb);
 		//设定wifi装置
 		wifiManager = (WifiManager)this.getSystemService(Context.WIFI_SERVICE);//取得WifiManager
@@ -143,23 +145,14 @@ public class WifiRecorderActivity extends Activity
 					finish();
 					break;
 				case R.id.btnSaveDefault:
-					baseFile = edtBase.getText().toString();
-					if (baseFile!=null){
-					doDefaultSave(baseFile,baseScan);
-					}
-					else{
-						doNotify("请输入分布名称");
-					}
+                    try {
+                        SaveBaseToTxt(baseScan);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 					break;
 				case R.id.btnReadDefault:
-					baseFile = edtBase.getText().toString();
-					if (baseFile!=null){
-						baseScan = doDefaultRead(baseFile);
-						baseFile = edtBase.getText().toString();
-					}
-					else{
-						doNotify("请输入分布名称");
-					}
+
 					break;
 			}
 		}
@@ -170,15 +163,28 @@ public class WifiRecorderActivity extends Activity
 	{
 		Log.d(TAG, "Create File");
 		String dateTime = android.text.format.DateFormat.format("yyyy_MM_dd_hhmm", new java.util.Date()).toString();
-		wifiRecFile = new File(getDirectory(),String.format("%s.txt",dateTime));
+		wifiRecFile = new File(getDirectory(),String.format("%s.txt",edtSaveFile.getText().toString()));
 		//String firstLine = String.format("#%d|%d|%s\n", scans, delay, dateTime);
 		StringBuilder firstLine =  new StringBuilder();
-		firstLine.append("TimeStamp");
+        firstLine.append(dateTime+"\n");
+		firstLine.append("TimeStamp ID");
 		for(int i=1;i<=APSum;i++){
 			firstLine.append(" AP"+i);
 		}
 		firstLine.append("\n");
 		doWriteToFile(wifiRecFile, firstLine.toString());//写入第一行 TimeStamp AP1 AP2 AP3 ……
+	}
+	//保存baseScan信息到SD卡文件夹下，方便以后分析
+	public void SaveBaseToTxt(List<ScanResult> scanResults) throws Exception{
+		File file = new File(getDirectory(),String.format("%s.txt",edtBase.getText().toString()));
+        String dateTime = android.text.format.DateFormat.format("yyyy_MM_dd_hhmm", new java.util.Date()).toString();
+		StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(dateTime+"\n");
+		for (ScanResult scanResult : scanResults) {
+			stringBuilder.append(String.format("%s %s "+"\n",scanResult.SSID,scanResult.BSSID));//记录wifi信息
+		}
+		doWriteToFile(file,stringBuilder.toString());
+        doNotify("Save Successfully!");
 	}
 
 	public StringBuilder AddtoFile(List<ScanResult> scanResults) throws Exception {
@@ -186,17 +192,8 @@ public class WifiRecorderActivity extends Activity
 		StringBuilder stringBuilder = new StringBuilder();
 		long timestamp = System.currentTimeMillis() / 1000;
 		stringBuilder.append(String.format("%s ", timestamp));//记录扫描wifi序号，时间
-		if (scanCount == 1){
-			baseScan = scanResults;
-			for (ScanResult firstscanResult : baseScan) {
-                stringBuilder.append(String.format("%s ",firstscanResult.level));//记录wifi信息
-            }
-			stringBuilder.append("\n");
-			doWriteToFile(wifiRecFile, stringBuilder.toString());
-			//wifiData.setText(String.format("%s", stringBuilder));
-		}
-		else {
-			//完善baseScan信息
+		if (baseScan != null){
+			//如果baseScan不为null就完善baseScan信息
 			for (ScanResult scanResult : scanResults) {
 				boolean wasScan = false;
 				for (ScanResult baseResult : baseScan){
@@ -209,7 +206,13 @@ public class WifiRecorderActivity extends Activity
 					baseScan.add(scanResult);//则添加该wifi信息至baseScan
 				}
 			}
-			//利用循环搜索与第一次搜索结果进行匹配。
+		}
+		else {
+			baseScan = scanResults;//若果baseScan为null则将该次扫描赋值给baseScan
+		}
+
+			//利用循环搜索与baseScan进行匹配。
+            stringBuilder.append(LocId+" ");//添加ID信息
 			for (ScanResult baseResult : baseScan){
 				boolean isCheck = false;//匹配是否存在，匹配到为true
 				for (ScanResult scanResult : scanResults) {
@@ -225,8 +228,6 @@ public class WifiRecorderActivity extends Activity
             }
 			stringBuilder.append("\n");
 			doWriteToFile(wifiRecFile, stringBuilder.toString());
-			//wifiData.setText(String.format("%s", stringBuilder));
-		}
         return stringBuilder;
 	}
 
@@ -274,7 +275,11 @@ public class WifiRecorderActivity extends Activity
 		delay = Integer.parseInt(eidtDelayNum.getText().toString());
 		scans = Integer.parseInt(editScanNum.getText().toString());
         scanProgress.setText("ScanCount: " + scanCount + "/" + scans);
-		CreatFile();
+        LocId = edtLocId.getText().toString();
+        if (baseScan == null){
+            CreatFile();//首次启动创建文件
+        }
+        //启动子线程定时任务
         WifiScanTask wsTask = new WifiScanTask();
         wsTask.execute();
         //new Thread(new scanThread()).start();

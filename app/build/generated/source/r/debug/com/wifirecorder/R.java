@@ -25,12 +25,12 @@ public final class R {
         public static final int btnSaveDefault=0x7f09000a;
         public static final int btnStart=0x7f090000;
         public static final int btnStop=0x7f090001;
-        public static final int editDelayNum=0x7f090006;
-        public static final int editScanNum=0x7f090004;
+        public static final int editDelayNum=0x7f090004;
+        public static final int editScanNum=0x7f090003;
         public static final int edtBase=0x7f09000c;
+        public static final int edtLocId=0x7f090005;
+        public static final int edtSaveFile=0x7f090006;
         public static final int scanPb=0x7f090007;
-        public static final int viewDelayNum=0x7f090005;
-        public static final int viewScanNum=0x7f090003;
         public static final int wifiData=0x7f090009;
     }
     public static final class layout {
